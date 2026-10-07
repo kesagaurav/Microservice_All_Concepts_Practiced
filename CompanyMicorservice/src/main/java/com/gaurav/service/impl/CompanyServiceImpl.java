@@ -33,8 +33,14 @@ public class CompanyServiceImpl implements CompanyService {
 	public CompanyDTO getById(int eid) throws CompanyException {
 		// TODO Auto-generated method stub
 		Company orElseThrow = erepo.findById(eid).orElseThrow(()->new CompanyException("id is not found " + eid));
-		if(eid==1) {
-			throw  new RuntimeException();
+		//		if(eid==1) {
+//			throw  new RuntimeException();
+//		}
+		try {
+			Thread.sleep(5000);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 		return CompanyDTO.entityToDTO(orElseThrow);
 	}
