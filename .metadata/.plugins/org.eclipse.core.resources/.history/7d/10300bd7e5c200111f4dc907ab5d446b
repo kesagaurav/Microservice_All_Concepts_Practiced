@@ -1,0 +1,11 @@
+package com.gaurav.controller;
+
+import org.springframework.cloud.openfeign.FeignClient;
+
+import com.gaurav.dto.CompanyDTO;
+
+@FeignClient(name="CompanyMicorservice",url="http://localhost:9000/")
+public interface EmpCompanyFeign {
+
+	CompanyDTO getById(int eid);
+}

@@ -1,0 +1,134 @@
+package com.gaurav.service.impl;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cloud.client.ServiceInstance;
+import org.springframework.cloud.client.discovery.DiscoveryClient;
+import org.springframework.cloud.loadbalancer.annotation.LoadBalancerClient;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import com.gaurav.config.LoadBalancerConfig;
+import com.gaurav.dto.CompanyDTO;
+import com.gaurav.dto.EmployeeDTO;
+import com.gaurav.exception.EmployeeException;
+import com.gaurav.model.Employee;
+import com.gaurav.repository.EmployeeRepository;
+import com.gaurav.service.EmployeeService;
+
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+@Service
+@LoadBalancerClient(name="MyloadBalancer", configuration=LoadBalancerConfig.class)
+
+public class EmployeeServiceImpl implements EmployeeService {
+	@Autowired
+	private EmployeeRepository erepo;
+	@Autowired
+	RestTemplate rt;
+	@Autowired
+	DiscoveryClient dc;
+	
+	String companyUri;
+	@Autowired
+	EmployeeCircuitBreakerService employeeCircuitBreakerService;
+	
+	@Override
+	public EmployeeDTO createEmployee(EmployeeDTO edto) {
+		// TODO Auto-generated method stub
+		Employee entity = edto.createEntity();
+	    Employee savedEmployee = erepo.save(entity);
+
+	    EmployeeDTO responseDTO = EmployeeDTO.entityToDTO(savedEmployee);
+
+	    return responseDTO;
+	}
+
+	@Override
+	public List<EmployeeDTO> getAllEmployees() {
+		// TODO Auto-generated method stub
+		return erepo.findAll().stream().map(a->EmployeeDTO.entityToDTO(a)).collect(Collectors.toList());
+	}
+
+	@Override
+	@CircuitBreaker(name="employeeMicorservice",fallbackMethod = "getById")
+	public EmployeeDTO getById(int eid) throws EmployeeException {
+		// TODO Auto-generated method stub
+		Employee orElseThrow = erepo.findById(eid).orElseThrow(()->new EmployeeException("id is not found " + eid));
+		List<ServiceInstance> instances = dc.getInstances("CompanyMicorservice");
+		if(instances!=null&&!instances.isEmpty()) 
+			companyUri = instances.get(0).getUri().toString();
+		
+		//using rest template
+//		CompanyDTO forObject = rt.getForObject(
+//			    "http://localhost:9091/company/" + orElseThrow.getCid(),
+//			    CompanyDTO.class
+//			);
+		//using service discovery
+//		CompanyDTO forObject = rt.getForObject(
+//			    companyUri + "/company/" + orElseThrow.getCid(),
+//			    CompanyDTO.class
+//			);
+//		ServiceInstance instance = instances.get(0);
+//
+//		System.out.println("Host: " + instance.getHost());
+//		System.out.println("Port: " + instance.getPort());
+//		System.out.println("URI: " + instance.getUri());
+		
+		// using load balancer
+//		CompanyDTO forObject = rt.getForObject(
+//			   "http://CompanyMicorservice/company/" + orElseThrow.getCid(),
+//			    CompanyDTO.class
+//			);
+		//Load-balancer -2
+//		CompanyDTO forObject = rt.getForObject(
+//				   "http://MyloadBalancer/company/" + orElseThrow.getCid(),
+//				    CompanyDTO.class
+//				);
+
+		
+		//using circuit-breaker
+		Employee entityToDTO = erepo.findById(eid).get();
+
+		EmployeeDTO entityToDTO2 = EmployeeDTO.entityToDTO(entityToDTO);
+		CompanyDTO forObject = employeeCircuitBreakerService.getById(entityToDTO2.getCdto().getCid());
+
+//		EmployeeDTO entityToDTO = EmployeeDTO.entityToDTO(orElseThrow);
+		
+//		Employee entityToDTO = erepo.findById(eid).get();
+//
+//		EmployeeDTO entityToDTO2 = EmployeeDTO.entityToDTO(entityToDTO);
+		
+		entityToDTO2.setCdto(forObject);
+	
+		return entityToDTO;
+	}
+	
+	//circuit-breaker
+	public EmployeeDTO getById(Integer cid,Throwable throw1) {
+		System.out.println("===============fallback===========");
+		return new EmployeeDTO();
+	}
+	
+
+	@Override
+	public EmployeeDTO updateEmployee(EmployeeDTO edto, int eid) throws EmployeeException {
+		// TODO Auto-generated method stub
+		Employee orElseThrow = erepo.findById(eid).orElseThrow(()->new EmployeeException("id is not found " + eid));
+		orElseThrow.setName(edto.getName());
+		orElseThrow.setDept(edto.getName());
+		orElseThrow.setSal(edto.getSal());
+		Employee save = erepo.save(orElseThrow);
+		return EmployeeDTO.entityToDTO(save);
+	}
+
+	@Override
+	public EmployeeDTO delete(int eid) throws EmployeeException {
+		// TODO Auto-generated method stub
+		 Employee e = erepo.findById(eid).orElseThrow(()->new EmployeeException("id is not found " + eid));
+		erepo.delete(e);
+		 return EmployeeDTO.entityToDTO(e);
+	}
+
+}

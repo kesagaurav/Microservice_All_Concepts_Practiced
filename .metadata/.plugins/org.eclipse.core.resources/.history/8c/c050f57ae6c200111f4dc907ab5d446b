@@ -1,0 +1,36 @@
+package com.gaurav.service.impl;
+
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import com.gaurav.controller.EmpCompanyFeign;
+import com.gaurav.dto.CompanyDTO;
+
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.vavr.concurrent.Future;
+
+@Service
+public class EmployeeCircuitBreakerService {
+	@Autowired 
+	RestTemplate template; 
+	@Autowired
+	EmpCompanyFeign ecf;
+	//using synchronous
+//	@CircuitBreaker(name="employeeService")
+//	public CompanyDTO getById(int eid) {
+//		return template.getForObject("http://CompanyMicorservice/company/"+eid, CompanyDTO.class);
+//	}
+	//using Asynchronous
+//	@CircuitBreaker(name="employeeService")
+//	public Future<CompanyDTO> getById(int eid) {
+//		return Future.of(()-> template.getForObject("http://CompanyMicorservice/company/"+eid, CompanyDTO.class));
+//	}
+	
+	//using feign client
+	@CircuitBreaker(name="employeeService")
+	public Future<CompanyDTO> getById(int eid) {
+		return Future.of(()-> ecf.getById(eid));
+	}
+}

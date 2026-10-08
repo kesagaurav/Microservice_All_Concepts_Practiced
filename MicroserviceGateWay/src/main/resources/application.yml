@@ -1,0 +1,17 @@
+spring:
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+
+      routes:
+        - id: EmployeeMicorService
+          uri: lb://EmployeeMicorService
+          predicates:
+            - Path=/employee/**
+
+        - id: CompanyMicorService
+          uri: lb://CompanyMicorService
+          predicates:
+            - Path=/company/**
